@@ -1,9 +1,26 @@
 import os
 import cv2
-import PIL.Image as Image
+import numpy as np
 
 CAPTCHA_IMAGE_FOLDER = "./captcha_images"
 OUTPUT_FOLDER = "./generated_single_images"
+
+
+def pad_array_to_size(array, target_size):
+    # Get the current shape of the array
+    current_shape = array.shape
+
+    # Calculate the padding required for each dimension
+    padding = []
+    for dim_size, target_dim_size in zip(current_shape, target_size):
+        before = (target_dim_size - dim_size) // 2
+        after = target_dim_size - dim_size - before
+        padding.append((before, after))
+
+    # Pad the array using np.pad()
+    padded_array = np.pad(array, padding, mode='constant', constant_values=255)
+
+    return padded_array
 
 
 def extract_parts_from_contours(contours, name):
@@ -23,14 +40,20 @@ def extract_parts_from_contours(contours, name):
         else:
             # This is a normal letter by itself
             letter_image_regions.append((x, y, w, h))
+    letter_image_regions = sorted(letter_image_regions, key=lambda x: x[0])
 
-        # If we found more or less than 4 letters in the captcha, our letter extraction
-        # didn't work correcly. Skip the image instead of saving bad training data!
-    if len(letter_image_regions) != len(name.split(".png")[0]):
-        print("Not Equal")
+    # if the contours are more than the characters than we have an error in segmenting the characters
+    if len(letter_image_regions) != 4:
+        character_path = os.path.join(OUTPUT_FOLDER, name)
+        cv2.imwrite(character_path ,binary_image )
     else:
-        for character in name:
-            pass
+        for i in range(len(letter_image_regions)):
+            x, y, w, h = letter_image_regions[i]
+            copy = binary_image[y - 2:y + h + 2, x - 2:x + w + 2]
+            copy = 255 - copy
+            copy = pad_array_to_size(copy, (35, 35))
+            character_path = os.path.join(OUTPUT_FOLDER, name[i])
+            cv2.imwrite(character_path + ".png", copy)
 
 
 for image in os.listdir(CAPTCHA_IMAGE_FOLDER):
@@ -39,11 +62,8 @@ for image in os.listdir(CAPTCHA_IMAGE_FOLDER):
 
     gray = cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)  # converting BGR format to gray
 
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)  # reducing noise
+    _, binary_image = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
 
-    # Binarize the image using adaptive thresholding
-    binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  # finding contours
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  # finding contours
 
     extract_parts_from_contours(contours, image)
