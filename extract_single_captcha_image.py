@@ -5,8 +5,8 @@ import numpy as np
 CAPTCHA_IMAGE_FOLDER = "./captcha_images"
 OUTPUT_FOLDER = "./generated_single_images"
 
+count = 0  # using for giving image a unique name
 
-count = 0 # using for giving image a unique name
 
 def pad_array_to_size(array, target_size):
     # Get the current shape of the array
@@ -47,24 +47,24 @@ def find_large_zero_groups(data, threshold=1):
 
     return zero_groups
 
-def split_images(grps,average_character_width,name):
+
+def split_images(grps, average_character_width, name):
     global count
     index = 0
-    for start,end in grps:
+    for start, end in grps:
         left = start
         upper = 0
         lower = height
-        right = max(end, start+average_character_width)
-        character = binary_image[upper : lower , left:right+1]
+        right = max(end, start + average_character_width)
+        character = binary_image[upper: lower, left:right + 1]
         character = pad_array_to_size(character, (50, 50))
         try:
-            path = os.path.join(OUTPUT_FOLDER,name.split(".")[0][index])
-            cv2.imwrite(path+f"_{count}_"+".png",character)
-            index+=1
-            count+=1
+            path = os.path.join(OUTPUT_FOLDER, name.split(".")[0][index])
+            cv2.imwrite(path + f"_{count}_" + ".png", character)
+            index += 1
+            count += 1
         except:
             print(name)
-
 
 
 def segment_characters_from_binary_image(binary_image, name):
@@ -90,7 +90,7 @@ def segment_characters_from_binary_image(binary_image, name):
     average_character_width = (average_character_width // len(name.split(".")[0]))
 
     if len(non_zero_grps) == len(name.split(".")[0]):
-        split_images(non_zero_grps,average_character_width,name)
+        split_images(non_zero_grps, average_character_width, name)
     else:
         grps = []
         threshold = average_character_width // 2  # to check if the width goes more than the threshold
@@ -103,7 +103,7 @@ def segment_characters_from_binary_image(binary_image, name):
                     grps.append((start + average_character_width, end))
             else:
                 grps.append((start, end))
-        split_images(grps,average_character_width,name)
+        split_images(grps, average_character_width, name)
 
 
 for image in os.listdir(CAPTCHA_IMAGE_FOLDER):
